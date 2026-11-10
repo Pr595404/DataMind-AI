@@ -74,6 +74,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+
 # Global error handler
 app.add_exception_handler(Exception, global_exception_handler)
 
@@ -85,16 +87,26 @@ app.include_router(dashboard_router)
 app.include_router(analytics_router)
 
 
-@app.get("/", tags=["root"])
-async def root():
-    """Root endpoint — API info."""
+@app.get("/api/info", tags=["root"])
+async def root_info():
+    """API info endpoint."""
     return {
         "name": "DataMind AI",
         "version": "0.1.0",
-        "description": "AI-Powered Business Intelligence Platform",
+        "description": "AI-Powered Business Intelligence Platform — IBM Db2 + LangChain",
         "docs": "/docs",
         "health": "/api/health",
     }
+
+
+# Mount production frontend build if available
+frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
+if os.path.exists(frontend_dist):
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static")
+else:
+    @app.get("/", tags=["root"])
+    async def root():
+        return await root_info()
 
 
 if __name__ == "__main__":

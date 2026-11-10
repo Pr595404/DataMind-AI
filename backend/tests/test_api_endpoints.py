@@ -10,8 +10,8 @@ client = TestClient(app)
 
 
 def test_root_endpoint():
-    """Verify GET / returns API metadata."""
-    response = client.get("/")
+    """Verify API metadata."""
+    response = client.get("/api/info")
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "DataMind AI"
