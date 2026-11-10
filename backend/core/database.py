@@ -48,6 +48,28 @@ class Db2Connection:
         conn = sqlite3.connect(self._sqlite_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
+
+        # Register Db2 SQL compatible scalar functions in SQLite
+        def _sql_year(val):
+            if val is None:
+                return None
+            try:
+                return int(str(val)[:4])
+            except (ValueError, TypeError):
+                return 0
+
+        def _sql_month(val):
+            if val is None:
+                return None
+            try:
+                parts = str(val).split("-")
+                return int(parts[1]) if len(parts) > 1 else 0
+            except (ValueError, TypeError, IndexError):
+                return 0
+
+        conn.create_function("YEAR", 1, _sql_year)
+        conn.create_function("MONTH", 1, _sql_month)
+
         self._sqlite_conn = conn
         self._ensure_sqlite_schema()
         return conn
@@ -162,7 +184,7 @@ class Db2Connection:
 
     def _normalize_sqlite_sql(self, sql: str) -> str:
         normalized = sql.strip().rstrip(";").strip()
-        normalized = re.sub(r"FETCH FIRST\s+(\d+)\s+ROWS\s+ONLY", r"LIMIT \1", normalized, flags=re.I)
+        normalized = re.sub(r"FETCH FIRST\s+(\d+)\s+ROWS?\s+ONLY", r"LIMIT \1", normalized, flags=re.I)
         normalized = normalized.replace("CURRENT SERVER", "'LOCALHOST'")
         normalized = normalized.replace("CURRENT TIMESTAMP", "CURRENT_TIMESTAMP")
         upper = normalized.upper()
@@ -266,8 +288,8 @@ class Db2Connection:
         normalized_sql = self._normalize_sqlite_sql(sql)
         try:
             cursor = sqlite_conn.execute(normalized_sql, params)
-            columns = [description[0] for description in cursor.description] if cursor.description else []
-            rows = [dict(row) for row in cursor.fetchall()]
+            columns = [description[0].upper() for description in cursor.description] if cursor.description else []
+            rows = [{str(k).upper(): v for k, v in dict(row).items()} for row in cursor.fetchall()]
             return {"columns": columns, "rows": rows, "row_count": len(rows)}
         except Exception as e:
             logger.error("SQLite query execution failed: %s | SQL: %s", str(e), normalized_sql)
