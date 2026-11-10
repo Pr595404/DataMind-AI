@@ -258,16 +258,16 @@ async def generate_explanation_for_results(
     first_row = rows[0]
     if "TOTAL_REVENUE" in first_row and "PRODUCT_NAME" in first_row:
         top_name = first_row.get("PRODUCT_NAME")
-        top_rev = float(first_row.get("TOTAL_REVENUE", 0))
+        top_rev = float(first_row.get("TOTAL_REVENUE") or 0)
         return f"{default_exp} Top performer is '{top_name}' generating ${top_rev:,.2f}."
     elif "LIFETIME_VALUE" in first_row:
         top_company = first_row.get("COMPANY") or f"{first_row.get('FIRST_NAME')} {first_row.get('LAST_NAME')}"
-        top_val = float(first_row.get("LIFETIME_VALUE", 0))
+        top_val = float(first_row.get("LIFETIME_VALUE") or 0)
         return f"{default_exp} Top account is {top_company} with ${top_val:,.2f} in cumulative purchases."
     elif "TOTAL_REVENUE" in first_row and "TOTAL_ORDERS" in first_row:
-        tot_rev = float(first_row.get("TOTAL_REVENUE", 0))
-        tot_ord = int(first_row.get("TOTAL_ORDERS", 0))
-        avg_val = float(first_row.get("AVERAGE_ORDER_VALUE", 0))
+        tot_rev = float(first_row.get("TOTAL_REVENUE") or 0)
+        tot_ord = int(first_row.get("TOTAL_ORDERS") or 0)
+        avg_val = float(first_row.get("AVERAGE_ORDER_VALUE") or 0)
         return f"Cumulative enterprise revenue stands at ${tot_rev:,.2f} across {tot_ord} orders (average order value: ${avg_val:,.2f})."
 
     return f"{default_exp} Returned {row_count} records from IBM Db2."

@@ -12,6 +12,20 @@ router = APIRouter(prefix="/api", tags=["analytics"])
 logger = logging.getLogger(__name__)
 
 
+def _safe_float(val, default=0.0) -> float:
+    try:
+        return float(val) if val is not None else default
+    except (ValueError, TypeError):
+        return default
+
+
+def _safe_int(val, default=0) -> int:
+    try:
+        return int(val) if val is not None else default
+    except (ValueError, TypeError):
+        return default
+
+
 @router.get("/anomalies")
 async def get_anomalies():
     """
@@ -29,11 +43,11 @@ async def get_anomalies():
             "GROUP BY status"
         )
         if tx_result.success and tx_result.rows:
-            total_tx = sum(int(r.get("CNT", 0)) for r in tx_result.rows)
+            total_tx = sum(_safe_int(r.get("CNT")) for r in tx_result.rows)
             failed_rows = [r for r in tx_result.rows if str(r.get("STATUS", "")).upper() in ("FAILED", "DECLINED")]
             if failed_rows and total_tx > 0:
-                failed_cnt = sum(int(r.get("CNT", 0)) for r in failed_rows)
-                failed_val = sum(float(r.get("TOTAL_VAL", 0)) for r in failed_rows)
+                failed_cnt = sum(_safe_int(r.get("CNT")) for r in failed_rows)
+                failed_val = sum(_safe_float(r.get("TOTAL_VAL")) for r in failed_rows)
                 failure_rate = (failed_cnt / total_tx) * 100
 
                 if failed_cnt > 0:
@@ -58,7 +72,7 @@ async def get_anomalies():
             "ORDER BY yr, mo"
         )
         if trend_result.success and len(trend_result.rows) >= 2:
-            rev_values = [float(r.get("REV", 0)) for r in trend_result.rows]
+            rev_values = [_safe_float(r.get("REV")) for r in trend_result.rows]
             avg_rev = sum(rev_values) / len(rev_values) if rev_values else 0
             latest_rev = rev_values[-1]
             prev_rev = rev_values[-2]
@@ -100,14 +114,14 @@ async def get_anomalies():
             "FETCH FIRST 5 ROWS ONLY"
         )
         if inv_result.success and inv_result.rows:
-            critical_items = [r.get("PRODUCT_NAME") for r in inv_result.rows if int(r.get("STOCK_QUANTITY", 0)) <= 10]
+            critical_items = [r.get("PRODUCT_NAME") for r in inv_result.rows if _safe_int(r.get("STOCK_QUANTITY")) <= 10]
             if critical_items:
                 anomalies.append({
                     "title": "Critical Low Stock on In-Demand Inventory",
                     "description": f"Products with active sales volume have critical inventory below 10 units: {', '.join(str(x) for x in critical_items[:3])}.",
                     "severity": "High",
                     "metric": "Minimum In-Demand Stock",
-                    "value": int(inv_result.rows[0].get("STOCK_QUANTITY", 0)),
+                    "value": _safe_int(inv_result.rows[0].get("STOCK_QUANTITY")),
                     "expected": 50,
                     "status": "Action Required"
                 })
@@ -121,7 +135,7 @@ async def get_anomalies():
             "GROUP BY c.segment"
         )
         if cust_result.success and cust_result.rows:
-            total_inactive = sum(int(r.get("INACTIVE_CNT", 0)) for r in cust_result.rows)
+            total_inactive = sum(_safe_int(r.get("INACTIVE_CNT")) for r in cust_result.rows)
             if total_inactive > 0:
                 anomalies.append({
                     "title": "Dormant Customer Onboarding Risk",
@@ -166,7 +180,7 @@ async def get_recommendations():
         if cat_result.success and cat_result.rows:
             top_cat = cat_result.rows[0]
             top_name = top_cat.get("CATEGORY")
-            top_rev = float(top_cat.get("REV", 0))
+            top_rev = _safe_float(top_cat.get("REV"))
             recommendations.append({
                 "title": f"Expand Inventory & Marketing for Leading Category: {top_name}",
                 "business_area": "Merchandising & Sales",
@@ -191,8 +205,8 @@ async def get_recommendations():
         if seg_result.success and seg_result.rows:
             top_seg = seg_result.rows[0]
             seg_name = top_seg.get("SEGMENT")
-            seg_rev = float(top_seg.get("TOTAL_REV", 0))
-            avg_ord = float(top_seg.get("AVG_ORDER", 0))
+            seg_rev = _safe_float(top_seg.get("TOTAL_REV"))
+            avg_ord = _safe_float(top_seg.get("AVG_ORDER"))
             recommendations.append({
                 "title": f"Launch Dedicated VIP Loyalty Incentive for {seg_name} Segment",
                 "business_area": "Customer Success & Retention",
@@ -212,8 +226,8 @@ async def get_recommendations():
             "GROUP BY status"
         )
         if tx_check.success and tx_check.rows:
-            failed_cnt = sum(int(r.get("CNT", 0)) for r in tx_check.rows)
-            failed_val = sum(float(r.get("VAL", 0)) for r in tx_check.rows)
+            failed_cnt = sum(_safe_int(r.get("CNT")) for r in tx_check.rows)
+            failed_val = sum(_safe_float(r.get("VAL")) for r in tx_check.rows)
             if failed_cnt > 0:
                 recommendations.append({
                     "title": "Resolve Checkout Payment Gateway Fallback Mechanisms",
@@ -221,7 +235,7 @@ async def get_recommendations():
                     "priority": "Critical",
                     "observation": f"{failed_cnt} payment transactions failed representing ${failed_val:,.2f} in unrealized revenue.",
                     "evidence": f"Db2 transaction audit records show {failed_cnt} failed attempts.",
-                    "impact": "Direct recovery of up to 70% of failed checkout transactions (${~~failed_val * 0.7:,.2f}).",
+                    "impact": f"Direct recovery of up to 70% of failed checkout transactions (${failed_val * 0.7:,.2f}).",
                     "next_action": "Implement automatic smart retry routing and secondary payment gateway fallback at checkout.",
                     "confidence": 0.96
                 })
@@ -233,7 +247,7 @@ async def get_recommendations():
             "WHERE stock_quantity <= 15"
         )
         if inv_check.success and inv_check.rows:
-            low_stock_cnt = int(inv_check.rows[0].get("LOW_STOCK_CNT", 0))
+            low_stock_cnt = _safe_int(inv_check.rows[0].get("LOW_STOCK_CNT"))
             if low_stock_cnt > 0:
                 recommendations.append({
                     "title": "Trigger Automated Purchase Orders for Low-Stock Items",
