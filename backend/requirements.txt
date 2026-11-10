@@ -1,0 +1,21 @@
+# Phase 1 - Database Foundation Dependencies ONLY
+# AI/LangChain dependencies will be added in Phase 2
+
+# Core
+fastapi>=0.136.0
+uvicorn[standard]>=0.48.0
+pydantic>=2.13.0
+pydantic-settings>=2.15.0
+python-dotenv>=1.1.0
+
+# Database
+ibm-db>=3.2.0
+ibm-db-sa>=0.4.1
+sqlalchemy>=2.0.50
+
+# Utilities
+httpx>=0.28.0
+python-multipart>=0.0.18
+
+# Dev / Testing
+pytest>=8.0
