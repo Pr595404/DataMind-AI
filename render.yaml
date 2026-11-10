@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: datamind-ai
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: APP_PORT
+        value: 8000
+      - key: APP_DEBUG
+        value: "false"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: MAX_QUERY_ROWS
+        value: "1000"
+      - key: QUERY_TIMEOUT_SECONDS
+        value: "30"
